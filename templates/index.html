@@ -1,0 +1,984 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#6366f1">
+    <title>Budget Manager</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="manifest" href="/static/manifest.json">
+    <link rel="icon" type="image/png" href="/static/icon.png">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        :root {
+            --primary: #6366f1;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --dark: #1e293b;
+            --light: #f8fafc;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        .container {
+            max-width: 1200px;
+            padding: 20px;
+        }
+        
+        .card {
+            border: none;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+            transition: transform 0.3s;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .balance-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+        }
+        
+        .balance-amount {
+            font-size: 3rem;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: bold;
+            margin: 10px 0;
+        }
+        
+        .stat-label {
+            color: #64748b;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .btn-custom {
+            border-radius: 25px;
+            padding: 12px 30px;
+            font-weight: 600;
+            border: none;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary-custom {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-primary-custom:hover {
+            transform: scale(1.05);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .section-title {
+            color: white;
+            font-weight: bold;
+            margin: 30px 0 20px 0;
+            font-size: 1.5rem;
+        }
+        
+        .input-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-control {
+            border-radius: 10px;
+            border: 2px solid #e2e8f0;
+            padding: 12px;
+        }
+        
+        .form-control:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 0.2rem rgba(99, 102, 241, 0.25);
+        }
+        
+        .list-item {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            transition: all 0.3s;
+        }
+        
+        .list-item:hover {
+            transform: translateX(5px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        
+        .investment-item {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 15px;
+            border-left: 5px solid var(--primary);
+        }
+        
+        .investment-item.profit {
+            border-left-color: var(--success);
+        }
+        
+        .investment-item.loss {
+            border-left-color: var(--danger);
+        }
+        
+        .profit-badge {
+            background: var(--success);
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+        }
+        
+        .loss-badge {
+            background: var(--danger);
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+        }
+        
+        .warning-banner {
+            background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 15px;
+            margin: 20px 0;
+            display: none;
+        }
+        
+        .learning-section {
+            background: white;
+            padding: 25px;
+            border-radius: 20px;
+            margin-top: 20px;
+        }
+        
+        .learning-card {
+            background: #f8fafc;
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 15px;
+            border-left: 5px solid var(--primary);
+        }
+        
+        .tab-content {
+            padding: 20px 0;
+        }
+        
+        .nav-pills .nav-link {
+            border-radius: 25px;
+            margin: 0 5px;
+            color: white;
+            background: rgba(255,255,255,0.2);
+        }
+        
+        .nav-pills .nav-link.active {
+            background: white;
+            color: var(--primary);
+        }
+        
+        .transaction-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px;
+            background: #f8fafc;
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+        
+        .modal-content {
+            border-radius: 20px;
+            border: none;
+        }
+        
+        .modal-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 20px 20px 0 0;
+        }
+        
+        @media (max-width: 768px) {
+            .balance-amount {
+                font-size: 2rem;
+            }
+            .stat-value {
+                font-size: 1.4rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="text-center text-white my-4" style="font-weight: bold;">💰 Budget Manager</h1>
+        
+        <!-- Balance Card -->
+        <div class="card balance-card">
+            <div class="text-center">
+                <p class="mb-2" style="font-size: 1.2rem;">Available Balance</p>
+                <div class="balance-amount" id="mainBalance">RM 0.00</div>
+            </div>
+        </div>
+        
+        <!-- Warning Banner -->
+        <div class="warning-banner" id="warningBanner">
+            <h5>⚠️ Budget Alert!</h5>
+            <p id="warningMessage"></p>
+        </div>
+        
+        <!-- Stats Cards -->
+        <div class="row">
+            <div class="col-md-3 col-6 mb-3">
+                <div class="card stat-card">
+                    <div class="stat-label">Income</div>
+                    <div class="stat-value text-success" id="totalIncome">RM 0</div>
+                </div>
+            </div>
+            <div class="col-md-3 col-6 mb-3">
+                <div class="card stat-card">
+                    <div class="stat-label">Commitments</div>
+                    <div class="stat-value text-danger" id="totalCommitments">RM 0</div>
+                </div>
+            </div>
+            <div class="col-md-3 col-6 mb-3">
+                <div class="card stat-card">
+                    <div class="stat-label">Investments</div>
+                    <div class="stat-value text-primary" id="totalInvestments">RM 0</div>
+                    <small class="text-muted" id="investmentPL"></small>
+                </div>
+            </div>
+            <div class="col-md-3 col-6 mb-3">
+                <div class="card stat-card">
+                    <div class="stat-label">Spending</div>
+                    <div class="stat-value text-warning" id="totalSpending">RM 0</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Navigation Tabs -->
+        <ul class="nav nav-pills justify-content-center mb-4" role="tablist">
+            <li class="nav-item">
+                <a class="nav-link active" data-bs-toggle="pill" href="#dashboard">Dashboard</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" data-bs-toggle="pill" href="#income">Income</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" data-bs-toggle="pill" href="#commitments">Commitments</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" data-bs-toggle="pill" href="#investments">Investments</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" data-bs-toggle="pill" href="#spending">Spending</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" data-bs-toggle="pill" href="#learning">Learn</a>
+            </li>
+        </ul>
+        
+        <!-- Tab Content -->
+        <div class="tab-content">
+            <!-- Dashboard Tab -->
+            <div class="tab-pane fade show active" id="dashboard">
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title mb-4">Budget Overview</h5>
+                                <canvas id="budgetChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title">Money Allocation</h5>
+                                <canvas id="allocationChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row mt-3">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title">Spending Breakdown</h5>
+                                <canvas id="spendingChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title">Investment Performance</h5>
+                                <canvas id="investmentChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Income Tab -->
+            <div class="tab-pane fade" id="income">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Add Income</h5>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <input type="number" class="form-control" id="incomeAmount" placeholder="Amount (RM)">
+                            </div>
+                            <div class="col-md-4">
+                                <input type="text" class="form-control" id="incomeSource" placeholder="Source (e.g., Salary)">
+                            </div>
+                            <div class="col-md-2">
+                                <button class="btn btn-primary-custom btn-custom w-100" onclick="addIncome()">Add</button>
+                            </div>
+                        </div>
+                        <div id="incomeList" class="mt-4"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Commitments Tab -->
+            <div class="tab-pane fade" id="commitments">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Add Commitment</h5>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <input type="text" class="form-control" id="commitmentName" placeholder="Name (e.g., Rent)">
+                            </div>
+                            <div class="col-md-3">
+                                <input type="number" class="form-control" id="commitmentAmount" placeholder="Amount (RM)">
+                            </div>
+                            <div class="col-md-3">
+                                <select class="form-control" id="commitmentFrequency">
+                                    <option value="monthly">Monthly</option>
+                                    <option value="yearly">Yearly</option>
+                                    <option value="weekly">Weekly</option>
+                                </select>
+                            </div>
+                            <div class="col-md-2">
+                                <button class="btn btn-primary-custom btn-custom w-100" onclick="addCommitment()">Add</button>
+                            </div>
+                        </div>
+                        <div id="commitmentsList" class="mt-4"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Investments Tab -->
+            <div class="tab-pane fade" id="investments">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Add New Investment</h5>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <input type="text" class="form-control" id="investmentName" placeholder="Name (e.g., Bitcoin, Gold)">
+                            </div>
+                            <div class="col-md-3">
+                                <input type="number" step="0.01" class="form-control" id="investmentAmountInvested" placeholder="Amount Invested (RM)">
+                            </div>
+                            <div class="col-md-3">
+                                <input type="number" step="0.01" class="form-control" id="investmentCurrentValue" placeholder="Current Value (RM)">
+                            </div>
+                            <div class="col-md-2">
+                                <button class="btn btn-primary-custom btn-custom w-100" onclick="addInvestment()">Add</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="investmentsList" class="mt-4"></div>
+            </div>
+            
+            <!-- Spending Tab -->
+            <div class="tab-pane fade" id="spending">
+                <div class="card">
+                    <div class="card-body">
+                        <h5 class="card-title">Add Spending</h5>
+                        <div class="row">
+                            <div class="col-md-3">
+                                <select class="form-control" id="spendingCategory">
+                                    <option value="Food">Food</option>
+                                    <option value="Movies">Movies</option>
+                                    <option value="Shopping">Shopping</option>
+                                    <option value="Transport">Transport</option>
+                                    <option value="Entertainment">Entertainment</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <input type="number" class="form-control" id="spendingAmount" placeholder="Amount (RM)">
+                            </div>
+                            <div class="col-md-4">
+                                <input type="text" class="form-control" id="spendingDescription" placeholder="Description">
+                            </div>
+                            <div class="col-md-2">
+                                <button class="btn btn-primary-custom btn-custom w-100" onclick="addSpending()">Add</button>
+                            </div>
+                        </div>
+                        <div id="spendingList" class="mt-4"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Learning Tab -->
+            <div class="tab-pane fade" id="learning">
+                <div class="learning-section">
+                    <h4 class="mb-4">📚 Financial Education</h4>
+                    
+                    <div class="learning-card">
+                        <h5>💡 Budget Management Tips</h5>
+                        <ul>
+                            <li><strong>50/30/20 Rule:</strong> Allocate 50% for needs, 30% for wants, 20% for savings</li>
+                            <li><strong>Track Everything:</strong> Monitor all expenses to identify spending patterns</li>
+                            <li><strong>Emergency Fund:</strong> Save 3-6 months of expenses for unexpected situations</li>
+                            <li><strong>Review Monthly:</strong> Analyze your budget regularly and adjust as needed</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="learning-card">
+                        <h5>📈 Investment Basics</h5>
+                        <ul>
+                            <li><strong>Diversification:</strong> Don't put all eggs in one basket - spread investments</li>
+                            <li><strong>Start Early:</strong> Compound interest works best over time</li>
+                            <li><strong>Risk vs Reward:</strong> Higher returns usually mean higher risk</li>
+                            <li><strong>Research First:</strong> Understand what you're investing in before committing</li>
+                            <li><strong>Long-term Focus:</strong> Invest with a 5+ year time horizon for best results</li>
+                            <li><strong>Track Performance:</strong> Regularly update current values to monitor profit/loss</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="learning-card">
+                        <h5>🎯 Smart Money Habits</h5>
+                        <ul>
+                            <li><strong>Pay Yourself First:</strong> Save before spending on non-essentials</li>
+                            <li><strong>Avoid Lifestyle Inflation:</strong> Don't increase spending with income raises</li>
+                            <li><strong>Use Credit Wisely:</strong> Pay off credit cards in full each month</li>
+                            <li><strong>Set Clear Goals:</strong> Define short-term and long-term financial objectives</li>
+                            <li><strong>Automate Savings:</strong> Set up automatic transfers to savings accounts</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Investment Edit Modal -->
+    <div class="modal fade" id="investmentModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="investmentModalTitle">Edit Investment</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <label>Investment Name</label>
+                            <input type="text" class="form-control" id="editInvestmentName">
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label>Amount Invested (RM)</label>
+                            <input type="number" step="0.01" class="form-control" id="editAmountInvested">
+                        </div>
+                        <div class="col-md-6">
+                            <label>Current Value (RM)</label>
+                            <input type="number" step="0.01" class="form-control" id="editCurrentValue">
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <label>Notes</label>
+                            <textarea class="form-control" id="editNotes" rows="2"></textarea>
+                        </div>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-success btn-custom" onclick="updateInvestment()">💾 Save Changes</button>
+                        <button class="btn btn-danger btn-custom" onclick="deleteInvestment()">🗑️ Delete</button>
+                    </div>
+                    
+                    <hr class="my-4">
+                    
+                    <h6>Transaction History</h6>
+                    <div id="transactionsList"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let budgetChart, spendingChart, investmentChart, allocationChart;
+        let currentInvestmentId = null;
+        
+        // Service Worker Registration
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/static/sw.js');
+        }
+        
+        // Load data on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadSummary();
+            loadIncome();
+            loadCommitments();
+            loadInvestments();
+            loadSpending();
+        });
+        
+        async function loadSummary() {
+            const response = await fetch('/api/summary');
+            const data = await response.json();
+            
+            document.getElementById('mainBalance').textContent = `RM ${data.balance.toFixed(2)}`;
+            document.getElementById('totalIncome').textContent = `RM ${data.total_income.toFixed(2)}`;
+            document.getElementById('totalCommitments').textContent = `RM ${data.total_commitments.toFixed(2)}`;
+            document.getElementById('totalInvestments').textContent = `RM ${data.total_investments.toFixed(2)}`;
+            document.getElementById('totalSpending').textContent = `RM ${data.total_spending.toFixed(2)}`;
+            
+            // Show investment profit/loss
+            const pl = data.investment_profit_loss;
+            const plText = pl >= 0 ? `+RM ${pl.toFixed(2)}` : `-RM ${Math.abs(pl).toFixed(2)}`;
+            const plColor = pl >= 0 ? 'text-success' : 'text-danger';
+            document.getElementById('investmentPL').innerHTML = `<span class="${plColor}">${plText}</span>`;
+            
+            // Show warning if balance is low
+            if (data.balance < 1000) {
+                document.getElementById('warningBanner').style.display = 'block';
+                document.getElementById('warningMessage').textContent = 
+                    `Your balance is low (RM ${data.balance.toFixed(2)}). Consider reducing spending or increasing income.`;
+            } else {
+                document.getElementById('warningBanner').style.display = 'none';
+            }
+            
+            // Update charts
+            updateCharts(data);
+        }
+        
+        function updateCharts(data) {
+            // Budget Overview - Horizontal Bar Chart
+            const ctx1 = document.getElementById('budgetChart');
+            if (budgetChart) budgetChart.destroy();
+            budgetChart = new Chart(ctx1, {
+                type: 'bar',
+                data: {
+                    labels: ['Income', 'Commitments', 'Investments', 'Spending', 'Balance'],
+                    datasets: [{
+                        label: 'Amount (RM)',
+                        data: [data.total_income, data.total_commitments, data.total_investments, 
+                               data.total_spending, data.balance],
+                        backgroundColor: ['#10b981', '#ef4444', '#6366f1', '#f59e0b', '#14b8a6'],
+                        borderRadius: 10
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            grid: {
+                                display: true
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // Money Allocation Pie Chart
+            const ctx2 = document.getElementById('allocationChart');
+            if (allocationChart) allocationChart.destroy();
+            
+            const totalAllocated = data.total_commitments + data.total_investments + data.total_spending;
+            if (totalAllocated > 0) {
+                allocationChart = new Chart(ctx2, {
+                    type: 'pie',
+                    data: {
+                        labels: ['Commitments', 'Investments', 'Spending', 'Balance'],
+                        datasets: [{
+                            data: [data.total_commitments, data.total_investments, 
+                                   data.total_spending, data.balance],
+                            backgroundColor: ['#ef4444', '#6366f1', '#f59e0b', '#10b981'],
+                            borderWidth: 3,
+                            borderColor: '#fff'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        plugins: {
+                            legend: {
+                                position: 'bottom'
+                            }
+                        }
+                    }
+                });
+            }
+        }
+        
+        async function loadIncome() {
+            const response = await fetch('/api/income');
+            const data = await response.json();
+            
+            const list = document.getElementById('incomeList');
+            list.innerHTML = data.map(item => `
+                <div class="list-item">
+                    <div>
+                        <strong>${item.source}</strong><br>
+                        <small class="text-muted">${item.date}</small>
+                    </div>
+                    <div class="text-success fw-bold">RM ${parseFloat(item.amount).toFixed(2)}</div>
+                </div>
+            `).join('');
+        }
+        
+        async function loadCommitments() {
+            const response = await fetch('/api/commitments');
+            const data = await response.json();
+            
+            const list = document.getElementById('commitmentsList');
+            list.innerHTML = data.map(item => `
+                <div class="list-item">
+                    <div>
+                        <strong>${item.name}</strong><br>
+                        <small class="text-muted">${item.frequency}</small>
+                    </div>
+                    <div>
+                        <span class="text-danger fw-bold me-3">RM ${parseFloat(item.amount).toFixed(2)}</span>
+                        <button class="btn btn-sm btn-danger" onclick="deleteCommitment(${item.id})">Delete</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        async function loadInvestments() {
+            const response = await fetch('/api/investments');
+            const data = await response.json();
+            
+            const list = document.getElementById('investmentsList');
+            list.innerHTML = data.map(item => {
+                const pl = item.profit_loss;
+                const plPercent = item.profit_loss_percent;
+                const plClass = pl >= 0 ? 'profit' : 'loss';
+                const badgeClass = pl >= 0 ? 'profit-badge' : 'loss-badge';
+                const plSign = pl >= 0 ? '+' : '';
+                
+                return `
+                    <div class="investment-item ${plClass}">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div>
+                                <h6 class="mb-1">${item.name}</h6>
+                                <small class="text-muted">${item.buy_date}</small>
+                            </div>
+                            <span class="${badgeClass}">${plSign}RM ${pl.toFixed(2)} (${plSign}${plPercent.toFixed(2)}%)</span>
+                        </div>
+                        <div class="row mt-3">
+                            <div class="col-6">
+                                <small class="text-muted">Amount Invested</small><br>
+                                <strong>RM ${parseFloat(item.amount_invested).toFixed(2)}</strong>
+                            </div>
+                            <div class="col-6">
+                                <small class="text-muted">Current Value</small><br>
+                                <strong>RM ${parseFloat(item.current_value).toFixed(2)}</strong>
+                            </div>
+                        </div>
+                        ${item.notes ? `<div class="mt-2"><small class="text-muted">📝 ${item.notes}</small></div>` : ''}
+                        <button class="btn btn-sm btn-primary mt-3" onclick="openInvestmentModal(${item.id})">
+                            ✏️ Edit
+                        </button>
+                    </div>
+                `;
+            }).join('');
+            
+            // Update investment chart only if there are active investments
+            const activeInvestments = data.filter(i => i.status === 'active');
+            if (activeInvestments.length > 0) {
+                const ctx = document.getElementById('investmentChart');
+                if (investmentChart) investmentChart.destroy();
+                
+                const invested = activeInvestments.reduce((sum, i) => sum + parseFloat(i.amount_invested), 0);
+                const current = activeInvestments.reduce((sum, i) => sum + parseFloat(i.current_value), 0);
+                const pl = current - invested;
+                
+                // Only show chart if there's actual data
+                if (invested > 0) {
+                    investmentChart = new Chart(ctx, {
+                        type: 'doughnut',
+                        data: {
+                            labels: ['Invested', pl >= 0 ? 'Profit' : 'Loss'],
+                            datasets: [{
+                                data: [invested, Math.abs(pl)],
+                                backgroundColor: ['#6366f1', pl >= 0 ? '#10b981' : '#ef4444']
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: true
+                        }
+                    });
+                }
+            } else {
+                // Clear chart if no active investments
+                if (investmentChart) {
+                    investmentChart.destroy();
+                    investmentChart = null;
+                }
+            }
+        }
+        
+        async function loadSpending() {
+            const response = await fetch('/api/spending');
+            const data = await response.json();
+            
+            const list = document.getElementById('spendingList');
+            list.innerHTML = data.map(item => `
+                <div class="list-item">
+                    <div>
+                        <strong>${item.category}</strong><br>
+                        <small class="text-muted">${item.description} - ${item.date}</small>
+                    </div>
+                    <div class="text-warning fw-bold">RM ${parseFloat(item.amount).toFixed(2)}</div>
+                </div>
+            `).join('');
+            
+            // Update spending chart only if there's data
+            if (data.length > 0) {
+                const ctx = document.getElementById('spendingChart');
+                if (spendingChart) spendingChart.destroy();
+                
+                const categories = {};
+                data.forEach(item => {
+                    categories[item.category] = (categories[item.category] || 0) + parseFloat(item.amount);
+                });
+                
+                spendingChart = new Chart(ctx, {
+                    type: 'pie',
+                    data: {
+                        labels: Object.keys(categories),
+                        datasets: [{
+                            data: Object.values(categories),
+                            backgroundColor: ['#f59e0b', '#ef4444', '#ec4899', '#8b5cf6', '#6366f1', '#10b981']
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true
+                    }
+                });
+            } else {
+                // Clear chart if no spending data
+                if (spendingChart) {
+                    spendingChart.destroy();
+                    spendingChart = null;
+                }
+            }
+        }
+        
+        async function addIncome() {
+            const amount = document.getElementById('incomeAmount').value;
+            const source = document.getElementById('incomeSource').value;
+            
+            if (!amount || !source) {
+                alert('Please fill all fields');
+                return;
+            }
+            
+            await fetch('/api/income', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({amount: parseFloat(amount), source})
+            });
+            
+            document.getElementById('incomeAmount').value = '';
+            document.getElementById('incomeSource').value = '';
+            loadSummary();
+            loadIncome();
+        }
+        
+        async function addCommitment() {
+            const name = document.getElementById('commitmentName').value;
+            const amount = document.getElementById('commitmentAmount').value;
+            const frequency = document.getElementById('commitmentFrequency').value;
+            
+            if (!name || !amount) {
+                alert('Please fill all fields');
+                return;
+            }
+            
+            await fetch('/api/commitments', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({name, amount: parseFloat(amount), frequency})
+            });
+            
+            document.getElementById('commitmentName').value = '';
+            document.getElementById('commitmentAmount').value = '';
+            loadSummary();
+            loadCommitments();
+        }
+        
+        async function deleteCommitment(id) {
+            if (!confirm('Are you sure you want to delete this commitment?')) return;
+            await fetch(`/api/commitments/${id}`, {method: 'DELETE'});
+            loadSummary();
+            loadCommitments();
+        }
+        
+        async function addInvestment() {
+            const name = document.getElementById('investmentName').value;
+            const amount_invested = document.getElementById('investmentAmountInvested').value;
+            const current_value = document.getElementById('investmentCurrentValue').value;
+            
+            if (!name || !amount_invested || !current_value) {
+                alert('Please fill all fields');
+                return;
+            }
+            
+            await fetch('/api/investments', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    name, 
+                    amount_invested: parseFloat(amount_invested),
+                    current_value: parseFloat(current_value)
+                })
+            });
+            
+            document.getElementById('investmentName').value = '';
+            document.getElementById('investmentAmountInvested').value = '';
+            document.getElementById('investmentCurrentValue').value = '';
+            loadSummary();
+            loadInvestments();
+        }
+        
+        async function openInvestmentModal(id) {
+            currentInvestmentId = id;
+            
+            // Get investment details
+            const response = await fetch('/api/investments');
+            const investments = await response.json();
+            const investment = investments.find(i => i.id === id);
+            
+            if (investment) {
+                document.getElementById('investmentModalTitle').textContent = `Edit: ${investment.name}`;
+                document.getElementById('editInvestmentName').value = investment.name;
+                document.getElementById('editAmountInvested').value = investment.amount_invested;
+                document.getElementById('editCurrentValue').value = investment.current_value;
+                document.getElementById('editNotes').value = investment.notes || '';
+            }
+            
+            // Load transactions
+            const txResponse = await fetch(`/api/investments/${id}/transactions`);
+            const transactions = await txResponse.json();
+            
+            const list = document.getElementById('transactionsList');
+            list.innerHTML = transactions.map(t => `
+                <div class="transaction-item">
+                    <div>
+                        <strong>${t.type.toUpperCase()}</strong><br>
+                        <small class="text-muted">${t.date} ${t.notes ? '• ' + t.notes : ''}</small>
+                    </div>
+                    <div class="fw-bold ${t.type === 'buy' ? 'text-primary' : 'text-success'}">
+                        RM ${parseFloat(t.amount).toFixed(2)}
+                    </div>
+                </div>
+            `).join('') || '<p class="text-muted">No transactions yet</p>';
+            
+            const modal = new bootstrap.Modal(document.getElementById('investmentModal'));
+            modal.show();
+        }
+        
+        async function updateInvestment() {
+            const name = document.getElementById('editInvestmentName').value;
+            const amount_invested = document.getElementById('editAmountInvested').value;
+            const currentValue = document.getElementById('editCurrentValue').value;
+            const notes = document.getElementById('editNotes').value;
+            
+            if (!name || !amount_invested || !currentValue) {
+                alert('Please fill all required fields');
+                return;
+            }
+            
+            await fetch(`/api/investments/${currentInvestmentId}`, {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    name: name,
+                    amount_invested: parseFloat(amount_invested),
+                    current_value: parseFloat(currentValue),
+                    notes: notes
+                })
+            });
+            
+            bootstrap.Modal.getInstance(document.getElementById('investmentModal')).hide();
+            loadSummary();
+            loadInvestments();
+        }
+        
+        async function deleteInvestment() {
+            if (!confirm('Are you sure you want to delete this investment? This cannot be undone.')) return;
+            
+            await fetch(`/api/investments/${currentInvestmentId}`, {
+                method: 'DELETE'
+            });
+            
+            bootstrap.Modal.getInstance(document.getElementById('investmentModal')).hide();
+            loadSummary();
+            loadInvestments();
+        }
+        
+        async function addSpending() {
+            const category = document.getElementById('spendingCategory').value;
+            const amount = document.getElementById('spendingAmount').value;
+            const description = document.getElementById('spendingDescription').value;
+            
+            if (!amount) {
+                alert('Please enter amount');
+                return;
+            }
+            
+            await fetch('/api/spending', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({category, amount: parseFloat(amount), description})
+            });
+            
+            document.getElementById('spendingAmount').value = '';
+            document.getElementById('spendingDescription').value = '';
+            loadSummary();
+            loadSpending();
+        }
+    </script>
+</body>
+</html>

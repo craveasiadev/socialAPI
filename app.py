@@ -1,162 +1,280 @@
-from flask import Flask, request, jsonify
-from bs4 import BeautifulSoup
-import requests
-import re
-import urllib.parse
-from flask_cors import CORS
+from flask import Flask, render_template, request, jsonify
+import sqlite3
+from datetime import datetime
+import os
 
 app = Flask(__name__)
-CORS(app)
 
-def scrape_tiktok_reviews(place_name, address, place_type):
-    # Encode the place name to handle special characters
-    encoded_place_name = urllib.parse.quote(place_name)
-    encoded_address = urllib.parse.quote(address)
-    encoded_type = urllib.parse.quote(place_type)
-
-    # Create a Google search query using the place name
-    search_query = f"{encoded_place_name} {encoded_address} {encoded_type} tiktok reviews"
-    google_search_url = f"https://www.google.com/search?q={search_query}"
-
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
-    }
-
-    response = requests.get(google_search_url, headers=headers)
-    soup = BeautifulSoup(response.text, 'html.parser')
-
-    tiktok_review_links = set()  # Use a set to avoid duplicates
-    limit = 4
-
-    for a_tag in soup.find_all('a', href=True):
-        if 'tiktok.com' in a_tag['href']:
-            # Extract the actual URL from the href
-            match = re.search(r"url=(https://www.tiktok.com[^\&]+)", a_tag['href'])
-            if match:
-                # Decode URL-encoded characters
-                url = urllib.parse.unquote(match.group(1))
-                # Replace %40 with @ for TikTok usernames
-                url = url.replace('%40', '@')
-
-                # Filter out '/discover' links and only include @username links
-                if '@' in url and '/discover' not in url:
-                    # Clean up the URL, remove query parameters like '?lang=en'
-                    clean_url = re.sub(r'(\d+)/.*', r'\1', url)  # Stop at post ID
-                    tiktok_review_links.add(clean_url)
-
-        # Stop if we've already found 5 unique links with @username
-        if len(tiktok_review_links) >= limit:
-            break
-
-    # Convert the set back to a list and return it
-    return list(tiktok_review_links)
-
-
-#INTAGRAM REVIEWS-------------------------------------------------------------------------------------------
-def scrape_insta_reviews(place_name, address, place_type):
-    # Encode the place name to handle special characters
-    encoded_place_name = urllib.parse.quote(place_name)
-    encoded_address = urllib.parse.quote(address)
-    encoded_type = urllib.parse.quote(place_type)
-
-    # Create a Google search query using the place name
-    search_query = f"{encoded_place_name} {encoded_address} {encoded_type} instagram reviews"
-    google_search_url = f"https://www.google.com/search?q={search_query}"
-
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
-    }
-
-    response = requests.get(google_search_url, headers=headers)
-    soup = BeautifulSoup(response.text, 'html.parser')
-
-    instagram_review_links = set()  # Use a set to avoid duplicates
-    limit = 4
-
-    # Normalize place name for comparison (remove spaces, lowercase)
-    normalized_place_name = place_name.replace(' ', '').lower()
-
-    # Loop through all <a> tags
-    for a_tag in soup.find_all('a', href=True):
-        href = a_tag['href']
-
-        # Check if it's an Instagram link
-        if 'instagram.com' in href:
-            # Extract the actual URL from the href
-            match = re.search(r"url=(https://www.instagram.com[^\&]+)", href)
-            if match:
-                # Decode URL-encoded characters
-                url = urllib.parse.unquote(match.group(1))
-                print(url)
-
-                # Keep only links that have /p/ for posts (filter out non-post URLs like profiles)
-                if '/p/' in url:
-                    # Extract the Instagram username from the URL
-                    post_id = url.split('/')[-2]  # Get the second last element
-                    print(post_id) 
-                    username_match = re.search(r'instagram.com/([^/]+)/', url)
-                    if username_match:
-                        username = username_match.group(1).replace(' ', '').lower()
-
-                        # Strict match: Skip posts from the place's own account (exact match)
-                        if username != normalized_place_name:
-                            # Clean URL and remove unnecessary query parameters
-                            clean_url = re.sub(r'\?.*', '', url)  # Remove query parameters
-                            cleaner_url = "https://www.instagram.com/p/" + post_id
-                            instagram_review_links.add(cleaner_url)
-                if '/reel/' in url:
-                    # Extract the Instagram username from the URL
-                    post_id = url.split('/')[-2]  # Get the second last element
-                    print(post_id)
-                    username_match = re.search(r'instagram.com/([^/]+)/', url)
-                    if username_match:
-                        username = username_match.group(1).replace(' ', '').lower()
-
-                        # Strict match: Skip posts from the place's own account (exact match)
-                        if username != normalized_place_name:
-                            # Clean URL and remove unnecessary query parameters
-                            clean_url = re.sub(r'\?.*', '', url)  # Remove query parameters
-                            cleaner_url = "https://www.instagram.com/reel/" + post_id
-                            instagram_review_links.add(cleaner_url)
-
-
-        # Stop if we've already found 4 unique links
-        if len(instagram_review_links) >= limit:
-            break
-
-    # Convert the set back to a list and return it
-    return list(instagram_review_links)
-
-@app.route('/tiktok-reviews', methods=['GET'])
-def scrape_tiktok():
-    place_name = request.args.get('place_name')
-    address = request.args.get('address')
-    place_type = request.args.get('type')
+# Database initialization
+def init_db():
+    conn = sqlite3.connect('budget.db')
+    c = conn.cursor()
     
-    if not place_name or not address or not place_type:
-        return jsonify({'error': 'Place name, address, and type are required'}), 400
-
-    tiktok_review_links = scrape_tiktok_reviews(place_name, address, place_type)
-
-    return jsonify({
-        'place_name': place_name,
-        'tiktok_review_links': tiktok_review_links
-    })
-
-@app.route('/insta-reviews', methods=['GET'])
-def scrape_insta():
-    place_name = request.args.get('place_name')
-    address = request.args.get('address')
-    place_type = request.args.get('type')
+    # Income table
+    c.execute('''CREATE TABLE IF NOT EXISTS income
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                  amount REAL NOT NULL,
+                  source TEXT,
+                  date TEXT NOT NULL)''')
     
-    if not place_name or not address or not place_type:
-        return jsonify({'error': 'Place name, address, and type are required'}), 400
+    # Commitments table
+    c.execute('''CREATE TABLE IF NOT EXISTS commitments
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                  name TEXT NOT NULL,
+                  amount REAL NOT NULL,
+                  frequency TEXT NOT NULL,
+                  active INTEGER DEFAULT 1)''')
+    
+    # Investments table - Enhanced with tracking
+    c.execute('''CREATE TABLE IF NOT EXISTS investments
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                  name TEXT NOT NULL,
+                  type TEXT NOT NULL,
+                  amount_invested REAL NOT NULL,
+                  current_value REAL DEFAULT 0,
+                  buy_date TEXT NOT NULL,
+                  sell_date TEXT,
+                  status TEXT DEFAULT 'active',
+                  notes TEXT)''')
+    
+    # Investment transactions table
+    c.execute('''CREATE TABLE IF NOT EXISTS investment_transactions
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                  investment_id INTEGER NOT NULL,
+                  transaction_type TEXT NOT NULL,
+                  amount REAL NOT NULL,
+                  date TEXT NOT NULL,
+                  notes TEXT,
+                  FOREIGN KEY (investment_id) REFERENCES investments (id))''')
+    
+    # Spending table
+    c.execute('''CREATE TABLE IF NOT EXISTS spending
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                  category TEXT NOT NULL,
+                  amount REAL NOT NULL,
+                  description TEXT,
+                  date TEXT NOT NULL)''')
+    
+    conn.commit()
+    conn.close()
 
-    instagram_review_links = scrape_insta_reviews(place_name, address, place_type)
+init_db()
 
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+# Income endpoints
+@app.route('/api/income', methods=['GET', 'POST'])
+def income():
+    conn = sqlite3.connect('budget.db')
+    c = conn.cursor()
+    
+    if request.method == 'POST':
+        data = request.json
+        c.execute('INSERT INTO income (amount, source, date) VALUES (?, ?, ?)',
+                  (data['amount'], data['source'], datetime.now().strftime('%Y-%m-%d')))
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True})
+    
+    c.execute('SELECT * FROM income ORDER BY date DESC')
+    income_data = [{'id': row[0], 'amount': row[1], 'source': row[2], 'date': row[3]} 
+                   for row in c.fetchall()]
+    conn.close()
+    return jsonify(income_data)
+
+# Commitments endpoints
+@app.route('/api/commitments', methods=['GET', 'POST'])
+def commitments():
+    conn = sqlite3.connect('budget.db')
+    c = conn.cursor()
+    
+    if request.method == 'POST':
+        data = request.json
+        c.execute('INSERT INTO commitments (name, amount, frequency) VALUES (?, ?, ?)',
+                  (data['name'], data['amount'], data['frequency']))
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True})
+    
+    c.execute('SELECT * FROM commitments WHERE active = 1')
+    commitments_data = [{'id': row[0], 'name': row[1], 'amount': row[2], 'frequency': row[3]} 
+                        for row in c.fetchall()]
+    conn.close()
+    return jsonify(commitments_data)
+
+@app.route('/api/commitments/<int:id>', methods=['DELETE'])
+def delete_commitment(id):
+    conn = sqlite3.connect('budget.db')
+    c = conn.cursor()
+    c.execute('UPDATE commitments SET active = 0 WHERE id = ?', (id,))
+    conn.commit()
+    conn.close()
+    return jsonify({'success': True})
+
+# Enhanced Investments endpoints
+@app.route('/api/investments', methods=['GET', 'POST'])
+def investments():
+    conn = sqlite3.connect('budget.db')
+    c = conn.cursor()
+    
+    if request.method == 'POST':
+        data = request.json
+        c.execute('''INSERT INTO investments 
+                     (name, type, amount_invested, current_value, buy_date, status, notes) 
+                     VALUES (?, ?, ?, ?, ?, ?, ?)''',
+                  (data['name'], '', data['amount_invested'], 
+                   data['current_value'], datetime.now().strftime('%Y-%m-%d'),
+                   'active', data.get('notes', '')))
+        
+        investment_id = c.lastrowid
+        
+        # Add initial buy transaction
+        c.execute('''INSERT INTO investment_transactions 
+                     (investment_id, transaction_type, amount, date, notes) 
+                     VALUES (?, ?, ?, ?, ?)''',
+                  (investment_id, 'buy', data['amount_invested'], 
+                   datetime.now().strftime('%Y-%m-%d'), 'Initial investment'))
+        
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True})
+    
+    c.execute('''SELECT id, name, type, amount_invested, current_value, buy_date, 
+                 sell_date, status, notes FROM investments ORDER BY buy_date DESC''')
+    investments_data = []
+    for row in c.fetchall():
+        profit_loss = row[4] - row[3] if row[4] > 0 else 0
+        profit_loss_percent = ((profit_loss / row[3]) * 100) if row[3] > 0 else 0
+        
+        investments_data.append({
+            'id': row[0],
+            'name': row[1],
+            'type': row[2],
+            'amount_invested': row[3],
+            'current_value': row[4],
+            'buy_date': row[5],
+            'sell_date': row[6],
+            'status': row[7],
+            'notes': row[8],
+            'profit_loss': profit_loss,
+            'profit_loss_percent': profit_loss_percent
+        })
+    
+    conn.close()
+    return jsonify(investments_data)
+
+@app.route('/api/investments/<int:id>', methods=['PUT', 'DELETE'])
+def update_investment(id):
+    conn = sqlite3.connect('budget.db')
+    c = conn.cursor()
+    
+    if request.method == 'PUT':
+        data = request.json
+        c.execute('''UPDATE investments 
+                     SET name = ?, amount_invested = ?, current_value = ?, notes = ? 
+                     WHERE id = ?''',
+                  (data['name'], data['amount_invested'], data['current_value'], 
+                   data.get('notes', ''), id))
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True})
+    
+    if request.method == 'DELETE':
+        # Delete investment completely
+        c.execute('DELETE FROM investment_transactions WHERE investment_id = ?', (id,))
+        c.execute('DELETE FROM investments WHERE id = ?', (id,))
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True})
+
+@app.route('/api/investments/<int:id>/transactions', methods=['GET', 'POST'])
+def investment_transactions(id):
+    conn = sqlite3.connect('budget.db')
+    c = conn.cursor()
+    
+    if request.method == 'POST':
+        data = request.json
+        c.execute('''INSERT INTO investment_transactions 
+                     (investment_id, transaction_type, amount, date, notes) 
+                     VALUES (?, ?, ?, ?, ?)''',
+                  (id, data['transaction_type'], data['amount'], 
+                   datetime.now().strftime('%Y-%m-%d'), data.get('notes', '')))
+        
+        # Update investment amount if adding more
+        if data['transaction_type'] == 'buy':
+            c.execute('SELECT amount_invested FROM investments WHERE id = ?', (id,))
+            current = c.fetchone()[0]
+            c.execute('UPDATE investments SET amount_invested = ? WHERE id = ?',
+                     (current + data['amount'], id))
+        
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True})
+    
+    c.execute('''SELECT id, transaction_type, amount, date, notes 
+                 FROM investment_transactions 
+                 WHERE investment_id = ? ORDER BY date DESC''', (id,))
+    transactions = [{'id': row[0], 'type': row[1], 'amount': row[2], 
+                    'date': row[3], 'notes': row[4]} for row in c.fetchall()]
+    conn.close()
+    return jsonify(transactions)
+
+# Spending endpoints
+@app.route('/api/spending', methods=['GET', 'POST'])
+def spending():
+    conn = sqlite3.connect('budget.db')
+    c = conn.cursor()
+    
+    if request.method == 'POST':
+        data = request.json
+        c.execute('INSERT INTO spending (category, amount, description, date) VALUES (?, ?, ?, ?)',
+                  (data['category'], data['amount'], data['description'], datetime.now().strftime('%Y-%m-%d')))
+        conn.commit()
+        conn.close()
+        return jsonify({'success': True})
+    
+    c.execute('SELECT * FROM spending ORDER BY date DESC')
+    spending_data = [{'id': row[0], 'category': row[1], 'amount': row[2], 'description': row[3], 'date': row[4]} 
+                    for row in c.fetchall()]
+    conn.close()
+    return jsonify(spending_data)
+
+# Dashboard summary
+@app.route('/api/summary')
+def summary():
+    conn = sqlite3.connect('budget.db')
+    c = conn.cursor()
+    
+    c.execute('SELECT SUM(amount) FROM income')
+    total_income = c.fetchone()[0] or 0
+    
+    c.execute('SELECT SUM(amount) FROM commitments WHERE active = 1')
+    total_commitments = c.fetchone()[0] or 0
+    
+    c.execute('SELECT SUM(amount_invested) FROM investments WHERE status = "active"')
+    total_investments = c.fetchone()[0] or 0
+    
+    c.execute('SELECT SUM(current_value) FROM investments WHERE status = "active"')
+    total_current_value = c.fetchone()[0] or 0
+    
+    c.execute('SELECT SUM(amount) FROM spending')
+    total_spending = c.fetchone()[0] or 0
+    
+    conn.close()
+    
+    balance = total_income - total_commitments - total_investments - total_spending
+    investment_profit_loss = total_current_value - total_investments if total_investments > 0 else 0
+    
     return jsonify({
-        'place_name': place_name,
-        'instagram_review_links': instagram_review_links
+        'total_income': total_income,
+        'total_commitments': total_commitments,
+        'total_investments': total_investments,
+        'total_current_value': total_current_value,
+        'investment_profit_loss': investment_profit_loss,
+        'total_spending': total_spending,
+        'balance': balance
     })
 
 if __name__ == '__main__':
